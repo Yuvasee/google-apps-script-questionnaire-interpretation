@@ -40,14 +40,14 @@ function renderResults(company: string, participantResponses: ParticipantRespons
 		]);
 	});
 
-	const avValues = data.reduce(
+	const averageValues = data.reduce(
 		(sums, row, i) => i === 0 ? [] : sums.length
 			? sums.map((s, i) => Number(s) + Number(row[i]))
 			: row,
 		[]
 	).map(v => Number(v) / companyParticipantQuestionnaires.length);
-	avValues.shift();
-	data.push([`${company} СРЕДНЕЕ`, ...avValues]);
+	averageValues.shift();
+	data.push([`${company} AVG`, ...averageValues]);
 
 	const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 	const companySheet = spreadsheet.getSheetByName(company);
