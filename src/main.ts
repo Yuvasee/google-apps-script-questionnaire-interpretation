@@ -1,33 +1,15 @@
-type Questionnaire = {
-	name: string;
-	questions: Question[];
-	scales: Scale[];
-};
-
-type Question = {
-	index: number;
-	title: string;
-	options: Record<string, number>;
-};
-
-type Scale = {
-	name: string;
-	questions: number[];
-};
-
-type CompletedQuestionnaire = {
-	questionnaireName: string;
-	responses: Record<number, number>;
-};
-
-type ParticipantResponse = {
-	company: string;
-	questionnaires: CompletedQuestionnaire[];
-};
+import { ParticipantResponse, Questionnaire } from "./types";
 
 const RESPONSES_SHEET_NAME = 'Form Responses 1';
 
-function onOpen() {
+export function onOpen() {
+	const ui = SpreadsheetApp.getUi();
+	ui.createMenu('V9VSoft')
+		.addItem('Process responses', 'processResponses')
+		.addToUi();
+}
+
+export function processResponses() {
 	const participantResponses = parseParticipantResponses();
 	if (!participantResponses) {
 		return;
@@ -38,12 +20,12 @@ function onOpen() {
 	companies.forEach(company => renderResults(company, participantResponses));
 }
 
-function renderResults(company, participantResponses) {
+function renderResults(company: string, participantResponses: ParticipantResponse[]) {
 	const companyParticipantQuestionnaires = participantResponses
 		.filter(r => r.company === company)
 		.map(r => r.questionnaires);
 
-	const data = [];
+	const data = [] as (string | number)[][];
 
 	const q1 = getQuestionnaire1();
 	data.push(['', ...q1.scales.map(s => s.name)]);
@@ -60,10 +42,10 @@ function renderResults(company, participantResponses) {
 
 	const avValues = data.reduce(
 		(sums, row, i) => i === 0 ? [] : sums.length
-			? sums.map((s, i) => s + row[i])
+			? sums.map((s, i) => Number(s) + Number(row[i]))
 			: row,
 		[]
-	).map(v => v / companyParticipantQuestionnaires.length);
+	).map(v => Number(v) / companyParticipantQuestionnaires.length);
 	avValues.shift();
 	data.push([`${company} СРЕДНЕЕ`, ...avValues]);
 
@@ -72,7 +54,7 @@ function renderResults(company, participantResponses) {
 	companySheet.getRange(1, 1, data.length, data[0].length).setValues(data);
 }
 
-function initCompanySheets(companies) {
+function initCompanySheets(companies: string[]) {
 	const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 	const sheetNames = spreadsheet.getSheets().map(s => s.getName());
 	for (const company of companies) {
@@ -91,14 +73,14 @@ function initCompanySheets(companies) {
 	}
 }
 
-function parseParticipantResponses() {
+function parseParticipantResponses(): ParticipantResponse[] {
 	const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 	const sheetResponses = spreadsheet?.getSheetByName(RESPONSES_SHEET_NAME);
 	if (!sheetResponses) {
 		return;
 	}
 
-	const participantResponses = [];
+	const participantResponses = [] as ParticipantResponse[];
 
 	let nRow = 2;
 	let range = sheetResponses.getRange(`${nRow}:${nRow}`).getValues();
@@ -112,14 +94,14 @@ function parseParticipantResponses() {
 	return participantResponses;
 }
 
-function parseParticipantResponse(row) {
+function parseParticipantResponse(row: any[]): ParticipantResponse {
 	const COL_COMPANY = 1;
 	const COL_Q1_START = 2;
 	const COL_Q2_FINISH = 113;
 
 	const q1 = getQuestionnaire1();
 
-	const participantResponse = {
+	const participantResponse: ParticipantResponse = {
 		company: row[COL_COMPANY],
 		questionnaires: [
 			{
@@ -137,7 +119,7 @@ function parseParticipantResponse(row) {
 	return participantResponse;
 }
 
-function getQuestionnaire1() {
+function getQuestionnaire1(): Questionnaire {
 	const questionnaire = {
 		name: 'Опросник',
 		questions: [
