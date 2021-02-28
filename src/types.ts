@@ -1,5 +1,6 @@
 export type Questionnaire = {
     name: string;
+    index: number;
     questions: Question[];
     scales: Scale[];
 };

@@ -1,4 +1,4 @@
-import { ParticipantResponse, Questionnaire } from "./types";
+import { CompletedQuestionnaire, ParticipantResponse, Questionnaire } from "./types";
 
 const RESPONSES_SHEET_NAME = 'Form Responses 1';
 
@@ -25,33 +25,47 @@ function renderResults(company: string, participantResponses: ParticipantRespons
 		.filter(r => r.company === company)
 		.map(r => r.questionnaires);
 
-	const data = [] as (string | number)[][];
+	const questionnaires = [getQuestionnaire0(), getQuestionnaire1()];
+	questionnaires.forEach(q => renderQuestionnaire(company, q, companyParticipantQuestionnaires))
+}
 
-	const q1 = getQuestionnaire1();
-	data.push(['', ...q1.scales.map(s => s.name)]);
-	companyParticipantQuestionnaires.forEach((participantQuestionnaires, i) => {
-		data.push([
+function renderQuestionnaire(
+	company: string,
+	questionnaire: Questionnaire,
+	participantResponses: CompletedQuestionnaire[][],
+) {
+	const rows = [] as (string | number)[][];
+	// Build Header
+	rows.push([questionnaire.name, ...questionnaire.scales.map(s => s.name)]);
+
+	// Build Participant Rows
+	participantResponses.forEach((participantQuestionnaires, i) => {
+		rows.push([
 			`${company} ${i + 1}`,
-			...q1.scales.map(scale =>
+			...questionnaire.scales.map(scale =>
 				scale.questions
-					.map(qIndex => participantQuestionnaires[0].responses[qIndex])
+					.map(questionIndex =>
+						participantQuestionnaires[questionnaire.index].responses[questionIndex])
 					.reduce((sum, value) => sum + value, 0)
 			),
 		]);
 	});
 
-	const averageValues = data.reduce(
+	// Build Company Average Row
+	const averageValues = rows.reduce(
 		(sums, row, i) => i === 0 ? [] : sums.length
 			? sums.map((s, i) => Number(s) + Number(row[i]))
 			: row,
 		[]
-	).map(v => Number(v) / companyParticipantQuestionnaires.length);
+	).map(v => Number(v) / participantResponses.length);
 	averageValues.shift();
-	data.push([`${company} AVG`, ...averageValues]);
+	rows.push([`${company} AVG`, ...averageValues]);
 
+	// Render built rows
 	const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 	const companySheet = spreadsheet.getSheetByName(company);
-	companySheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+	const startRow = 1 + (participantResponses.length + 3) * questionnaire.index;
+	companySheet.getRange(startRow, 1, rows.length, rows[0].length).setValues(rows);
 }
 
 function initCompanySheets(companies: string[]) {
@@ -97,11 +111,11 @@ function parseParticipantResponses(): ParticipantResponse[] {
 function parseParticipantResponse(row: any[]): ParticipantResponse {
 	const COL_COMPANY = 1;
 
-	const q1 = getQuestionnaire1();
+	const q1 = getQuestionnaire0();
 	const COL_Q1_START = 2;
 	const COL_Q1_FINISH = 113;
 
-	const q2 = getQuestionnaire2();
+	const q2 = getQuestionnaire1();
 	const COL_Q2_START = 114;
 	const COL_Q2_FINISH = 218;
 
@@ -132,9 +146,10 @@ function parseParticipantResponse(row: any[]): ParticipantResponse {
 	return participantResponse;
 }
 
-function getQuestionnaire1(): Questionnaire {
+function getQuestionnaire0(): Questionnaire {
 	const questionnaire = {
 		name: 'Опросник',
+		index: 0,
 		questions: [
 			{ index: 1, title: 'У CEO нашей компании есть четкий план, который приведет нас к успеху' },
 			{ index: 2, title: 'Когда у нашей команды возникают сложности,  СEO - тот человек, который продолжает двигать команду к цели' },
@@ -305,9 +320,10 @@ function getQuestionnaire1(): Questionnaire {
 	};
 }
 
-function getQuestionnaire2(): Questionnaire {
+function getQuestionnaire1(): Questionnaire {
 	const questionnaire = {
 		name: 'Кеттелл',
+		index: 1,
 		questions: [
 			{ index: 1, title: 'Я думаю, что моя память сейчас лучше, чем была раньше:', options: { A: 'да', B: 'трудно сказать', C: 'нет' } },
 			{ index: 2, title: 'Я бы вполне мог жить один, вдали от людей:', options: { A: 'да', B: 'иногда', C: 'нет' } },
