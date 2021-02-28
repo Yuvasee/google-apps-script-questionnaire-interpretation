@@ -1,4 +1,4 @@
-import { CompletedQuestionnaire, ParticipantResponse, Questionnaire } from "./types";
+import { CompletedQuestionnaire, ParticipantResponse, Questionnaire } from './types';
 
 const RESPONSES_SHEET_NAME = 'Form Responses 1';
 
@@ -15,7 +15,7 @@ export function processResponses() {
 		return;
 	}
 
-	const companies = [...new Set(participantResponses.map(r => r.company))];
+	const companies = participantResponses.map(r => r.company).filter(keepUnique);
 	initCompanySheets(companies);
 	companies.forEach(company => renderResults(company, participantResponses));
 }
@@ -25,7 +25,13 @@ function renderResults(company: string, participantResponses: ParticipantRespons
 		.filter(r => r.company === company)
 		.map(r => r.questionnaires);
 
-	const questionnaires = [getQuestionnaire0(), getQuestionnaire1()];
+	const questionnaires = [
+		getQuestionnaire0(),
+		getQuestionnaire1(),
+		getQuestionnaire2(),
+		getQuestionnaire3()
+	];
+
 	questionnaires.forEach(q => renderQuestionnaire(company, q, companyParticipantQuestionnaires))
 }
 
@@ -111,23 +117,41 @@ function parseParticipantResponses(): ParticipantResponse[] {
 function parseParticipantResponse(row: any[]): ParticipantResponse {
 	const COL_COMPANY = 1;
 
-	const q1 = getQuestionnaire0();
-	const COL_Q1_START = 2;
-	const COL_Q1_FINISH = 113;
+	const q0 = getQuestionnaire0();
+	const COL_Q0_START = 2;
+	const COL_Q0_FINISH = 113;
 
-	const q2 = getQuestionnaire1();
-	const COL_Q2_START = 114;
-	const COL_Q2_FINISH = 218;
+	const q1 = getQuestionnaire1();
+	const COL_Q1_START = 114;
+	const COL_Q1_FINISH = 218;
+
+
+	const q2 = getQuestionnaire2();
+	const COL_Q2_START = 219;
+	const COL_Q2_FINISH = 268;
+
+	const q3 = getQuestionnaire3();
+	const COL_Q3_START = 269;
+	const COL_Q3_FINISH = 283;
 
 	const participantResponse: ParticipantResponse = {
 		company: row[COL_COMPANY],
 		questionnaires: [
 			{
+				questionnaireName: q0.name,
+				responses: row
+					.filter((_, i) => i >= COL_Q0_START && i <= COL_Q0_FINISH)
+					.reduce((responses, value, i) => {
+						responses[i + 1] = q0.questions.find(q => q.index === i + 1).options[value];
+						return responses;
+					}, {}),
+			},
+			{
 				questionnaireName: q1.name,
 				responses: row
 					.filter((_, i) => i >= COL_Q1_START && i <= COL_Q1_FINISH)
-					.reduce((responses, value, i) => {
-						responses[i + 1] = q1.questions.find(q => q.index === i + 1).options[value];
+					.reduce((responses, value: string, i) => {
+						responses[i + 1] = q1.questions.find(q => q.index === i + 1).options[value.toString().toLowerCase().replace(/\s+/g, ' ')];
 						return responses;
 					}, {}),
 			},
@@ -135,8 +159,17 @@ function parseParticipantResponse(row: any[]): ParticipantResponse {
 				questionnaireName: q2.name,
 				responses: row
 					.filter((_, i) => i >= COL_Q2_START && i <= COL_Q2_FINISH)
-					.reduce((responses, value: string, i) => {
-						responses[i + 1] = q2.questions.find(q => q.index === i + 1).options[value.toString().toLowerCase().replace(/\s+/g, ' ')];
+					.reduce((responses, value, i) => {
+						responses[i + 1] = q2.questions.find(q => q.index === i + 1).options[value.toLowerCase()];
+						return responses;
+					}, {}),
+			},
+			{
+				questionnaireName: q3.name,
+				responses: row
+					.filter((_, i) => i >= COL_Q3_START && i <= COL_Q3_FINISH)
+					.reduce((responses, value, i) => {
+						responses[i + 1] = q3.questions.find(q => q.index === i + 1).options[value];
 						return responses;
 					}, {}),
 			},
@@ -297,19 +330,19 @@ function getQuestionnaire0(): Questionnaire {
 	};
 
 	const options = {
-		"Нет, это совсем не так": 1,
-		"Скорее нет, чем да": 2,
-		"Затрудняюсь ответить": 3,
-		"Скорее да, чем нет": 4,
-		"Да, совершенно верно": 5,
+		'Нет, это совсем не так': 1,
+		'Скорее нет, чем да': 2,
+		'Затрудняюсь ответить': 3,
+		'Скорее да, чем нет': 4,
+		'Да, совершенно верно': 5,
 	};
 
 	const optionsRev = {
-		"Нет, это совсем не так": 5,
-		"Скорее нет, чем да": 4,
-		"Затрудняюсь ответить": 3,
-		"Скорее да, чем нет": 2,
-		"Да, совершенно верно": 1,
+		'Нет, это совсем не так': 5,
+		'Скорее нет, чем да': 4,
+		'Затрудняюсь ответить': 3,
+		'Скорее да, чем нет': 2,
+		'Да, совершенно верно': 1,
 	};
 
 	const reversed = [47, 49, 54, 57, 60, 63, 66, 67, 70, 71, 72, 78, 79, 81, 83, 84, 86, 87, 89, 90, 92, 93, 96, 97, 101, 102, 104, 108];
@@ -318,6 +351,10 @@ function getQuestionnaire0(): Questionnaire {
 		...questionnaire,
 		questions: questionnaire.questions.map(q => ({ ...q, options: reversed.includes(q.index) ? optionsRev : options }))
 	};
+}
+
+function keepUnique(value, index, self) {
+	return self.indexOf(value) === index;
 }
 
 function getQuestionnaire1(): Questionnaire {
@@ -568,5 +605,66 @@ function getQuestionnaire1(): Questionnaire {
 				[q.options.C]: key[q.index - 1].C,
 			}
 		}))
+	};
+}
+
+function getQuestionnaire2(): Questionnaire {
+	const optionsA = {
+		'в основном верно': 2,
+		'отчасти верно': 1,
+		'нет': 0,
+		'не могу решить': -1,
+	};
+
+	const optionsB = {
+		'в основном верно': 0,
+		'отчасти верно': 1,
+		'нет': 2,
+		'не могу решить': -1,
+	};
+
+	const questionsB = [5, 8, 22, 29, 32, 34, 28, 4, 9, 10, 17, 24, 41, 48, 14, 20, 39];
+
+	const scales = [
+		{ name: 'Склонность к риску', questions: [1, 21, 25, 35, 36, 43, 44, 5, 8, 22, 29, 32, 34,] },
+		{ name: 'Любознательность', questions: [2, 3, 11, 12, 19, 27, 33, 37, 38, 47, 49, 28,], },
+		{ name: 'Сложность', questions: [7, 15, 18, 26, 42, 50, 4, 9, 10, 17, 24, 41, 48,] },
+		{ name: 'Воображение', questions: [6, 13, 16, 23, 30, 31, 40, 45, 46, 14, 20, 39,] },
+	];
+
+	return {
+		name: 'Креативность',
+		index: 2,
+		questions: Array.from({ length: 50 }).map((_, i) => ({
+			index: i + 1,
+			title: '',
+			options: questionsB.includes(i + 1) ? optionsB : optionsA
+		})),
+		scales
+	}
+}
+
+function getQuestionnaire3(): Questionnaire {
+	const options = {
+		'Редко': 1,
+		'Иногда': 2,
+		'Всегда': 3
+	};
+
+	return {
+		name: 'Ленсиони',
+		index: 3,
+		questions: Array.from({ length: 15 }).map((_, i) => ({
+			index: i + 1,
+			title: '',
+			options,
+		})),
+		scales: [
+			{ name: 'Недоверие', questions: [4, 6, 12] },
+			{ name: 'Боязнь конфликта', questions: [1, 7, 10] },
+			{ name: 'Недостаток приверженности', questions: [3, 8, 13] },
+			{ name: 'Избегание ответственности', questions: [2, 11, 14] },
+			{ name: 'Безразличие к результатам', questions: [5, 9, 15] },
+		],
 	};
 }
